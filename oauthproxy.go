@@ -99,6 +99,7 @@ type OAuthProxy struct {
 	PreferEmailToUser   bool
 	skipAuthPreflight   bool
 	skipJwtBearerTokens bool
+	addHeadersToSkipped bool
 	realClientIPParser  ipapi.RealClientIPParser
 	trustedIPs          *ip.NetSet
 
@@ -222,6 +223,7 @@ func NewOAuthProxy(opts *options.Options, validator func(string) bool) (*OAuthPr
 		realClientIPParser:  opts.GetRealClientIPParser(),
 		SkipProviderButton:  opts.SkipProviderButton,
 		trustedIPs:          trustedIPs,
+		addHeadersToSkipped: opts.AddHeadersToSkipped,
 
 		basicAuthValidator: basicAuthValidator,
 		sessionChain:       sessionChain,
@@ -906,6 +908,13 @@ func (p *OAuthProxy) AuthOnly(rw http.ResponseWriter, req *http.Request) {
 
 // SkipAuthProxy proxies allowlisted requests and skips authentication
 func (p *OAuthProxy) SkipAuthProxy(rw http.ResponseWriter, req *http.Request) {
+	if p.addHeadersToSkipped {
+		session, err := p.getAuthenticatedSession(rw, req)
+		if err == nil {
+			// we are authenticated
+			p.addHeadersForProxying(rw, session)
+		}
+	}
 	p.headersChain.Then(p.serveMux).ServeHTTP(rw, req)
 }
 
