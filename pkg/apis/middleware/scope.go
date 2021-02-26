@@ -21,6 +21,10 @@ type RequestScope struct {
 	// mode and if request `X-Forwarded-*` headers should be trusted
 	ReverseProxy bool
 
+	// Is a session required for this request, or optional (e.g. it's a
+	// skipped route)
+	SessionRequired bool
+
 	// Session details the authenticated users information (if it exists).
 	Session *sessions.SessionState
 
