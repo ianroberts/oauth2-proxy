@@ -47,7 +47,7 @@ func loadBasicAuthSession(validator basic.Validator, sessionGroups []string, pre
 		}
 
 		session, err := getSession(validator, sessionGroups, req)
-		if err != nil {
+		if !scope.SessionOptional && err != nil {
 			logger.Errorf("Error retrieving session from token in Authorization header: %v", err)
 		}
 

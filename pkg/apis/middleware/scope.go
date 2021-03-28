@@ -39,6 +39,10 @@ type RequestScope struct {
 	// it was loaded or not.
 	SessionRevalidated bool
 
+	// SessionOptional indicates whether the current request is able to
+	// operate without a valid session (e.g. if it is a skipped route)
+	SessionOptional bool
+
 	// Upstream tracks which upstream was used for this request
 	Upstream string
 }

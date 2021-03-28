@@ -287,7 +287,7 @@ func (p *OAuthProxy) setupServer(opts *options.Options) error {
 func (p *OAuthProxy) buildServeMux(proxyPrefix string) {
 	r := mux.NewRouter()
 	// Everything served by the router must go through the preAuthChain first.
-	r.Use(p.preAuthChain.Then)
+	r.Use(p.preAuthChain.Append(p.isAllowedRequestMiddleware).Then)
 
 	// Register the robots path writer
 	r.Path(robotsPath).HandlerFunc(p.pageWriter.WriteRobotsTxt)
@@ -605,6 +605,13 @@ func (p *OAuthProxy) ErrorPage(rw http.ResponseWriter, req *http.Request, code i
 func (p *OAuthProxy) IsAllowedRequest(req *http.Request) bool {
 	isPreflightRequestAllowed := p.skipAuthPreflight && req.Method == "OPTIONS"
 	return isPreflightRequestAllowed || p.isAllowedRoute(req) || p.isTrustedIP(req)
+}
+
+func (p *OAuthProxy) isAllowedRequestMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		middlewareapi.GetRequestScope(req).SessionOptional = p.IsAllowedRequest(req)
+		next.ServeHTTP(rw, req)
+	})
 }
 
 // IsAllowedRoute is used to check if the request method & path is allowed without auth
@@ -1153,10 +1160,11 @@ func validOptionalPort(port string) bool {
 // - `nil, ErrAccessDenied` if the authenticated user is not authorized
 // Set-Cookie headers may be set on the response as a side-effect of calling this method.
 func (p *OAuthProxy) getAuthenticatedSession(rw http.ResponseWriter, req *http.Request) (*sessionsapi.SessionState, error) {
-	session := middlewareapi.GetRequestScope(req).Session
+	requestScope := middlewareapi.GetRequestScope(req)
+	session := requestScope.Session
 
-	// Check this after loading the session so that if a valid session exists, we can add headers from it
-	if p.IsAllowedRequest(req) {
+	// if the request doesn't require a session but we have one anyway, return it so we can add headers from it
+	if requestScope.SessionOptional {
 		return session, nil
 	}
 
